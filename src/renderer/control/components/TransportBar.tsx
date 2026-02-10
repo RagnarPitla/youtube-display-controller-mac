@@ -62,7 +62,7 @@ export default function TransportBar({ playbackState }: Props) {
           onClick={handlePlayPause}
           title={isPlaying ? 'Pause' : 'Play'}
         >
-          {isPlaying ? '&#9646;&#9646;' : '&#9654;'}
+          {isPlaying ? '\u23F8' : '\u25B6'}
         </button>
         <button className={btnClass} onClick={handleSeekForward} title="Forward 10s">
           &#9197;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import type { PlaybackState } from '../../../shared/types'
+import type { PlaybackState, DisplayInfo, LoopSettings, LocalFileInfo } from '../../../shared/types'
 
 declare global {
   interface Window {
@@ -9,6 +9,16 @@ declare global {
       sendPlaybackCommand: (cmd: { type: string; time?: number; delta?: number }) => void
       onPlaybackState: (cb: (state: PlaybackState) => void) => () => void
       onPlayerReady: (cb: () => void) => () => void
+      getDisplays: () => Promise<DisplayInfo[]>
+      moveToDisplay: (displayId: number) => void
+      sendShowLogo: (visible: boolean) => void
+      openLocalFile: () => Promise<string | null>
+      sendPlayLocalFile: (fileUrl: string) => void
+      sendVideoFitMode: (mode: string) => void
+      sendLoopSettings: (settings: LoopSettings) => void
+      browseFolder: () => Promise<string | null>
+      scanFolder: (folderPath: string) => Promise<LocalFileInfo[]>
+      pathToMediaUrl: (filePath: string) => string
     }
   }
 }

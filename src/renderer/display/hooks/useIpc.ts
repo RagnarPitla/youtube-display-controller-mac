@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import type { TransformState } from '../../../shared/types'
+import type { TransformState, VideoFitMode } from '../../../shared/types'
 
 const defaultTransform: TransformState = {
   scale: 1,
@@ -9,13 +9,34 @@ const defaultTransform: TransformState = {
 
 export function useDisplayIpc() {
   const [transform, setTransform] = useState<TransformState>(defaultTransform)
+  const [showLogo, setShowLogo] = useState(false)
+  const [localFileUrl, setLocalFileUrl] = useState<string | null>(null)
+  const [fitMode, setFitMode] = useState<VideoFitMode>('contain')
 
   useEffect(() => {
-    const unsub = window.displayAPI.onTransformUpdate((t) => {
+    const unsubTransform = window.displayAPI.onTransformUpdate((t) => {
       setTransform(t)
     })
-    return unsub
+    const unsubLogo = window.displayAPI.onShowLogo((visible) => {
+      setShowLogo(visible)
+    })
+    const unsubLocalFile = window.displayAPI.onPlayLocalFile((fileUrl) => {
+      setLocalFileUrl(fileUrl)
+    })
+    const unsubLoadVideo = window.displayAPI.onLoadVideo(() => {
+      setLocalFileUrl(null)
+    })
+    const unsubFitMode = window.displayAPI.onVideoFitMode((mode) => {
+      setFitMode(mode as VideoFitMode)
+    })
+    return () => {
+      unsubTransform()
+      unsubLogo()
+      unsubLocalFile()
+      unsubLoadVideo()
+      unsubFitMode()
+    }
   }, [])
 
-  return { transform }
+  return { transform, showLogo, localFileUrl, fitMode }
 }

@@ -1,6 +1,21 @@
-import { app, BrowserWindow, screen } from 'electron'
+import { app, BrowserWindow, screen, protocol, net } from 'electron'
 import { join } from 'path'
 import { registerIpcHandlers } from './ipc-handlers'
+
+// Register custom protocol for serving local media files
+// Must be called before app.whenReady()
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'local-media',
+    privileges: {
+      standard: true,
+      secure: true,
+      stream: true,
+      bypassCSP: true,
+      supportFetchAPI: true
+    }
+  }
+])
 
 let controlWindow: BrowserWindow | null = null
 let displayWindow: BrowserWindow | null = null
@@ -9,13 +24,14 @@ function createWindows(): void {
   // Control window - standard window for the operator
   controlWindow = new BrowserWindow({
     width: 850,
-    height: 700,
+    height: 850,
     title: 'YouTube Display Controller',
     webPreferences: {
       preload: join(__dirname, '../preload/control.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      webviewTag: true
     }
   })
 
@@ -54,6 +70,8 @@ function createWindows(): void {
   if (!app.isPackaged && process.env['ELECTRON_RENDERER_URL']) {
     controlWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/control/`)
     displayWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/display/`)
+    // Open DevTools on display window in dev mode for debugging
+    displayWindow.webContents.openDevTools({ mode: 'detach' })
   } else {
     controlWindow.loadFile(join(__dirname, '../renderer/control/index.html'))
     displayWindow.loadFile(join(__dirname, '../renderer/display/index.html'))
@@ -73,6 +91,13 @@ function createWindows(): void {
 }
 
 app.whenReady().then(() => {
+  // Handle local-media:// protocol requests by serving local files
+  protocol.handle('local-media', (request) => {
+    // Swap scheme back to file: and let net.fetch serve it
+    const fileUrl = request.url.replace('local-media:', 'file:')
+    return net.fetch(fileUrl)
+  })
+
   createWindows()
 
   app.on('activate', () => {

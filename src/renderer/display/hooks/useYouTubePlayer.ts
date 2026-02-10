@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
-import type { PlaybackCommand, PlaybackState } from '../../../shared/types'
+import type { PlaybackCommand, PlaybackState, LoopSettings } from '../../../shared/types'
 
 declare global {
   interface Window {
@@ -11,15 +11,24 @@ declare global {
       onTransformUpdate: (cb: (t: { scale: number; translateX: number; translateY: number }) => void) => () => void
       sendPlaybackState: (state: PlaybackState) => void
       sendPlayerReady: () => void
+      onShowLogo: (cb: (visible: boolean) => void) => () => void
+      onPlayLocalFile: (cb: (fileUrl: string) => void) => () => void
+      onVideoFitMode: (cb: (mode: string) => void) => () => void
+      onLoopSettings: (cb: (settings: LoopSettings) => void) => () => void
     }
   }
 }
 
-export function useYouTubePlayer(containerId: string) {
+export function useYouTubePlayer(containerId: string, active: boolean) {
   const playerRef = useRef<YT.Player | null>(null)
   const pollIntervalRef = useRef<number | null>(null)
+  const activeRef = useRef(active)
+  activeRef.current = active
+  const loopRef = useRef<LoopSettings>({ mode: 'off', count: 1 })
+  const loopCounterRef = useRef(0)
 
   const sendState = useCallback(() => {
+    if (!activeRef.current) return
     const player = playerRef.current
     if (!player || typeof player.getCurrentTime !== 'function') return
     try {
@@ -33,6 +42,13 @@ export function useYouTubePlayer(containerId: string) {
       // Player not ready yet
     }
   }, [])
+
+  // Pause YouTube when switching to local file
+  useEffect(() => {
+    if (!active && playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+      playerRef.current.pauseVideo()
+    }
+  }, [active])
 
   useEffect(() => {
     let apiReady = false
@@ -64,8 +80,22 @@ export function useYouTubePlayer(containerId: string) {
             if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
             pollIntervalRef.current = window.setInterval(sendState, 250)
           },
-          onStateChange: () => {
+          onStateChange: (event: { data: number }) => {
             sendState()
+            // Handle loop on video end
+            if (event.data === YT.PlayerState.ENDED && activeRef.current) {
+              const loop = loopRef.current
+              if (loop.mode === 'infinite') {
+                playerRef.current?.seekTo(0, true)
+                playerRef.current?.playVideo()
+              } else if (loop.mode === 'count') {
+                loopCounterRef.current++
+                if (loopCounterRef.current < loop.count) {
+                  playerRef.current?.seekTo(0, true)
+                  playerRef.current?.playVideo()
+                }
+              }
+            }
           }
         }
       })
@@ -78,11 +108,12 @@ export function useYouTubePlayer(containerId: string) {
 
     window.onYouTubeIframeAPIReady = () => {
       apiReady = true
-      initPlayer()
+      initPlayer('RZIexenVwSY')
     }
 
     // Listen for video load commands
     const unsubVideo = window.displayAPI.onLoadVideo((videoId: string) => {
+      loopCounterRef.current = 0
       if (apiReady && playerRef.current && typeof playerRef.current.loadVideoById === 'function') {
         playerRef.current.loadVideoById(videoId)
       } else if (apiReady) {
@@ -90,8 +121,15 @@ export function useYouTubePlayer(containerId: string) {
       }
     })
 
+    // Listen for loop settings
+    const unsubLoop = window.displayAPI.onLoopSettings((settings) => {
+      loopRef.current = settings
+      loopCounterRef.current = 0
+    })
+
     // Listen for playback commands
     const unsubPlayback = window.displayAPI.onPlaybackCommand((cmd: PlaybackCommand) => {
+      if (!activeRef.current) return
       const player = playerRef.current
       if (!player) return
       switch (cmd.type) {
@@ -113,6 +151,7 @@ export function useYouTubePlayer(containerId: string) {
     return () => {
       unsubVideo()
       unsubPlayback()
+      unsubLoop()
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
       if (playerRef.current) playerRef.current.destroy()
     }

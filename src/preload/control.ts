@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import { pathToFileURL } from 'url'
 import { IPC } from '../shared/ipc-channels'
-import type { TransformState, PlaybackCommand, PlaybackState } from '../shared/types'
+import type { TransformState, PlaybackCommand, PlaybackState, DisplayInfo, LoopSettings, LocalFileInfo } from '../shared/types'
 
 const controlAPI = {
   sendLoadVideo: (videoId: string) => {
@@ -21,6 +22,36 @@ const controlAPI = {
     const handler = () => callback()
     ipcRenderer.on(IPC.PLAYER_READY, handler)
     return () => ipcRenderer.removeListener(IPC.PLAYER_READY, handler)
+  },
+  getDisplays: (): Promise<DisplayInfo[]> => {
+    return ipcRenderer.invoke(IPC.GET_DISPLAYS)
+  },
+  moveToDisplay: (displayId: number) => {
+    ipcRenderer.send(IPC.MOVE_TO_DISPLAY, displayId)
+  },
+  sendShowLogo: (visible: boolean) => {
+    ipcRenderer.send(IPC.SHOW_LOGO, visible)
+  },
+  openLocalFile: (): Promise<string | null> => {
+    return ipcRenderer.invoke(IPC.OPEN_LOCAL_FILE)
+  },
+  sendPlayLocalFile: (fileUrl: string) => {
+    ipcRenderer.send(IPC.PLAY_LOCAL_FILE, fileUrl)
+  },
+  sendVideoFitMode: (mode: string) => {
+    ipcRenderer.send(IPC.VIDEO_FIT_MODE, mode)
+  },
+  sendLoopSettings: (settings: LoopSettings) => {
+    ipcRenderer.send(IPC.LOOP_SETTINGS, settings)
+  },
+  browseFolder: (): Promise<string | null> => {
+    return ipcRenderer.invoke(IPC.BROWSE_FOLDER)
+  },
+  scanFolder: (folderPath: string): Promise<LocalFileInfo[]> => {
+    return ipcRenderer.invoke(IPC.SCAN_FOLDER, folderPath)
+  },
+  pathToMediaUrl: (filePath: string): string => {
+    return pathToFileURL(filePath).href.replace('file:', 'local-media:')
   }
 }
 
