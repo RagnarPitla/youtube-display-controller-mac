@@ -1,6 +1,6 @@
 {
   "name": "youtube-display-controller",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Two-window Electron app for YouTube video display on ultrawide monitors",
   "main": "./out/main/index.js",
   "author": "Ragnar Pitla",

@@ -28,9 +28,17 @@ export function registerIpcHandlers(
     }
   }
 
+  // Bring display window to front (behind always-on-top control)
+  const raiseDisplay = () => {
+    if (!displayWindow.isDestroyed()) {
+      displayWindow.moveTop()
+    }
+  }
+
   // Control -> Display
   ipcMain.on(IPC.LOAD_VIDEO, (_event, videoId: string) => {
     sendToDisplay(IPC.LOAD_VIDEO, videoId)
+    raiseDisplay()
   })
 
   ipcMain.on(IPC.TRANSFORM_UPDATE, (_event, transform) => {
@@ -43,6 +51,7 @@ export function registerIpcHandlers(
 
   ipcMain.on(IPC.SHOW_LOGO, (_event, visible: boolean) => {
     sendToDisplay(IPC.SHOW_LOGO, visible)
+    if (visible) raiseDisplay()
   })
 
   // Display -> Control
@@ -90,6 +99,7 @@ export function registerIpcHandlers(
 
   ipcMain.on(IPC.PLAY_LOCAL_FILE, (_event, fileUrl: string) => {
     sendToDisplay(IPC.PLAY_LOCAL_FILE, fileUrl)
+    raiseDisplay()
   })
 
   ipcMain.on(IPC.VIDEO_FIT_MODE, (_event, mode: string) => {
