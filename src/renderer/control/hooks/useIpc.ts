@@ -16,6 +16,8 @@ declare global {
       sendPlayLocalFile: (fileUrl: string) => void
       sendVideoFitMode: (mode: string) => void
       sendLoopSettings: (settings: LoopSettings) => void
+      sendVolume: (volume: number) => void
+      setAlwaysOnTop: (enabled: boolean) => void
       browseFolder: () => Promise<string | null>
       scanFolder: (folderPath: string) => Promise<LocalFileInfo[]>
       pathToMediaUrl: (filePath: string) => string

@@ -12,7 +12,11 @@ function extractVideoId(url: string): string | null {
   return null
 }
 
-export default function YouTubeBrowser() {
+interface Props {
+  onSendToDisplay?: () => void
+}
+
+export default function YouTubeBrowser({ onSendToDisplay }: Props) {
   const webviewRef = useRef<Electron.WebviewTag | null>(null)
   const [addressBar, setAddressBar] = useState('https://www.youtube.com')
   const [canGoBack, setCanGoBack] = useState(false)
@@ -52,6 +56,7 @@ export default function YouTubeBrowser() {
   const handleSendToDisplay = () => {
     if (videoId) {
       window.controlAPI.sendLoadVideo(videoId)
+      onSendToDisplay?.()
     }
   }
 

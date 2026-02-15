@@ -1,12 +1,45 @@
 import { useEffect, useRef, useCallback } from 'react'
 import type { PlaybackCommand, PlaybackState, VideoFitMode, LoopSettings } from '../../../shared/types'
 
+const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.svg'])
+
+function isImageUrl(url: string): boolean {
+  try {
+    const pathname = new URL(url).pathname
+    const ext = '.' + pathname.split('.').pop()?.toLowerCase()
+    return IMAGE_EXTENSIONS.has(ext)
+  } catch {
+    return false
+  }
+}
+
 interface Props {
   fileUrl: string
   fitMode: VideoFitMode
 }
 
 export default function LocalVideoPlayer({ fileUrl, fitMode }: Props) {
+  const isImage = isImageUrl(fileUrl)
+
+  if (isImage) {
+    return (
+      <img
+        src={fileUrl}
+        alt=""
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: fitMode === 'none' ? 'none' : fitMode,
+          background: '#000'
+        }}
+      />
+    )
+  }
+
+  return <LocalVideo fileUrl={fileUrl} fitMode={fitMode} />
+}
+
+function LocalVideo({ fileUrl, fitMode }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const pollIntervalRef = useRef<number | null>(null)
   const loopRef = useRef<LoopSettings>({ mode: 'off', count: 1 })
@@ -78,11 +111,19 @@ export default function LocalVideoPlayer({ fileUrl, fitMode }: Props) {
       loopCounterRef.current = 0
     })
 
+    // Listen for volume changes
+    const unsubVolume = window.displayAPI.onVolumeChange((volume: number) => {
+      if (!video) return
+      video.volume = volume / 100
+      video.muted = volume === 0
+    })
+
     return () => {
       video.removeEventListener('canplay', handleCanPlay)
       video.removeEventListener('ended', handleEnded)
       unsubPlayback()
       unsubLoop()
+      unsubVolume()
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
     }
   }, [sendState])

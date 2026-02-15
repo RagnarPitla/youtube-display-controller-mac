@@ -44,6 +44,12 @@ const controlAPI = {
   sendLoopSettings: (settings: LoopSettings) => {
     ipcRenderer.send(IPC.LOOP_SETTINGS, settings)
   },
+  sendVolume: (volume: number) => {
+    ipcRenderer.send(IPC.VOLUME_CHANGE, volume)
+  },
+  setAlwaysOnTop: (enabled: boolean) => {
+    ipcRenderer.send(IPC.SET_ALWAYS_ON_TOP, enabled)
+  },
   browseFolder: (): Promise<string | null> => {
     return ipcRenderer.invoke(IPC.BROWSE_FOLDER)
   },

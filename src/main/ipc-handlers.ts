@@ -5,36 +5,53 @@ import { join, extname } from 'path'
 import { IPC } from '../shared/ipc-channels'
 import type { DisplayInfo, LocalFileInfo } from '../shared/types'
 
-const VIDEO_EXTENSIONS = new Set(['.mp4', '.webm', '.mov', '.mkv', '.avi', '.m4v'])
+const MEDIA_EXTENSIONS = new Set([
+  // Video
+  '.mp4', '.webm', '.mov', '.mkv', '.avi', '.m4v', '.m4p', '.mpg', '.mpeg', '.wmv', '.flv',
+  // Image
+  '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.svg'
+])
 
 export function registerIpcHandlers(
   controlWindow: BrowserWindow,
   displayWindow: BrowserWindow
 ): void {
+  const sendToDisplay = (channel: string, ...args: unknown[]) => {
+    if (!displayWindow.isDestroyed()) {
+      displayWindow.webContents.send(channel, ...args)
+    }
+  }
+
+  const sendToControl = (channel: string, ...args: unknown[]) => {
+    if (!controlWindow.isDestroyed()) {
+      controlWindow.webContents.send(channel, ...args)
+    }
+  }
+
   // Control -> Display
   ipcMain.on(IPC.LOAD_VIDEO, (_event, videoId: string) => {
-    displayWindow.webContents.send(IPC.LOAD_VIDEO, videoId)
+    sendToDisplay(IPC.LOAD_VIDEO, videoId)
   })
 
   ipcMain.on(IPC.TRANSFORM_UPDATE, (_event, transform) => {
-    displayWindow.webContents.send(IPC.TRANSFORM_UPDATE, transform)
+    sendToDisplay(IPC.TRANSFORM_UPDATE, transform)
   })
 
   ipcMain.on(IPC.PLAYBACK_COMMAND, (_event, command) => {
-    displayWindow.webContents.send(IPC.PLAYBACK_COMMAND, command)
+    sendToDisplay(IPC.PLAYBACK_COMMAND, command)
   })
 
   ipcMain.on(IPC.SHOW_LOGO, (_event, visible: boolean) => {
-    displayWindow.webContents.send(IPC.SHOW_LOGO, visible)
+    sendToDisplay(IPC.SHOW_LOGO, visible)
   })
 
   // Display -> Control
   ipcMain.on(IPC.PLAYBACK_STATE, (_event, state) => {
-    controlWindow.webContents.send(IPC.PLAYBACK_STATE, state)
+    sendToControl(IPC.PLAYBACK_STATE, state)
   })
 
   ipcMain.on(IPC.PLAYER_READY, () => {
-    controlWindow.webContents.send(IPC.PLAYER_READY)
+    sendToControl(IPC.PLAYER_READY)
   })
 
   // Screen management
@@ -49,6 +66,7 @@ export function registerIpcHandlers(
   })
 
   ipcMain.on(IPC.MOVE_TO_DISPLAY, (_event, displayId: number) => {
+    if (displayWindow.isDestroyed()) return
     const allDisplays = screen.getAllDisplays()
     const target = allDisplays.find((d) => d.id === displayId)
     if (target) {
@@ -58,10 +76,11 @@ export function registerIpcHandlers(
 
   // Local file playback
   ipcMain.handle(IPC.OPEN_LOCAL_FILE, async (): Promise<string | null> => {
+    if (controlWindow.isDestroyed()) return null
     const result = await dialog.showOpenDialog(controlWindow, {
-      title: 'Open Video File',
+      title: 'Open Media File',
       filters: [
-        { name: 'Video Files', extensions: ['mp4', 'webm', 'mov', 'mkv', 'avi', 'm4v'] }
+        { name: 'Media Files', extensions: ['mp4', 'webm', 'mov', 'mkv', 'avi', 'm4v', 'mpg', 'mpeg', 'wmv', 'flv', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'] }
       ],
       properties: ['openFile']
     })
@@ -70,21 +89,32 @@ export function registerIpcHandlers(
   })
 
   ipcMain.on(IPC.PLAY_LOCAL_FILE, (_event, fileUrl: string) => {
-    displayWindow.webContents.send(IPC.PLAY_LOCAL_FILE, fileUrl)
+    sendToDisplay(IPC.PLAY_LOCAL_FILE, fileUrl)
   })
 
   ipcMain.on(IPC.VIDEO_FIT_MODE, (_event, mode: string) => {
-    displayWindow.webContents.send(IPC.VIDEO_FIT_MODE, mode)
+    sendToDisplay(IPC.VIDEO_FIT_MODE, mode)
   })
 
   ipcMain.on(IPC.LOOP_SETTINGS, (_event, settings) => {
-    displayWindow.webContents.send(IPC.LOOP_SETTINGS, settings)
+    sendToDisplay(IPC.LOOP_SETTINGS, settings)
+  })
+
+  ipcMain.on(IPC.VOLUME_CHANGE, (_event, volume: number) => {
+    sendToDisplay(IPC.VOLUME_CHANGE, volume)
+  })
+
+  ipcMain.on(IPC.SET_ALWAYS_ON_TOP, (_event, enabled: boolean) => {
+    if (!controlWindow.isDestroyed()) {
+      controlWindow.setAlwaysOnTop(enabled)
+    }
   })
 
   // Folder browsing for local files
   ipcMain.handle(IPC.BROWSE_FOLDER, async (): Promise<string | null> => {
+    if (controlWindow.isDestroyed()) return null
     const result = await dialog.showOpenDialog(controlWindow, {
-      title: 'Select Video Folder',
+      title: 'Select Media Folder',
       properties: ['openDirectory']
     })
     if (result.canceled || result.filePaths.length === 0) return null
@@ -97,7 +127,7 @@ export function registerIpcHandlers(
       const entries = await readdir(folderPath)
       for (const entry of entries) {
         const ext = extname(entry).toLowerCase()
-        if (!VIDEO_EXTENSIONS.has(ext)) continue
+        if (!MEDIA_EXTENSIONS.has(ext)) continue
         const fullPath = join(folderPath, entry)
         const info = await stat(fullPath)
         if (info.isFile()) {

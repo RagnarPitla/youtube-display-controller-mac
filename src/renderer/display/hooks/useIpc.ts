@@ -9,7 +9,7 @@ const defaultTransform: TransformState = {
 
 export function useDisplayIpc() {
   const [transform, setTransform] = useState<TransformState>(defaultTransform)
-  const [showLogo, setShowLogo] = useState(false)
+  const [showLogo, setShowLogo] = useState(true)
   const [localFileUrl, setLocalFileUrl] = useState<string | null>(null)
   const [fitMode, setFitMode] = useState<VideoFitMode>('contain')
 

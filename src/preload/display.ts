@@ -46,6 +46,11 @@ const displayAPI = {
       callback(settings)
     ipcRenderer.on(IPC.LOOP_SETTINGS, handler)
     return () => ipcRenderer.removeListener(IPC.LOOP_SETTINGS, handler)
+  },
+  onVolumeChange: (callback: (volume: number) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, volume: number) => callback(volume)
+    ipcRenderer.on(IPC.VOLUME_CHANGE, handler)
+    return () => ipcRenderer.removeListener(IPC.VOLUME_CHANGE, handler)
   }
 }
 

@@ -25,7 +25,7 @@ function createWindows(): void {
   controlWindow = new BrowserWindow({
     width: 850,
     height: 850,
-    title: 'YouTube Display Controller',
+    title: 'BreathEva Player',
     webPreferences: {
       preload: join(__dirname, '../preload/control.js'),
       contextIsolation: true,
@@ -49,6 +49,12 @@ function createWindows(): void {
       sandbox: false
     }
   })
+
+  // Make display window non-interactive (ignore all mouse events)
+  displayWindow.setIgnoreMouseEvents(true)
+
+  // Default control window to always-on-top
+  controlWindow.setAlwaysOnTop(true)
 
   // Try to position display window on external monitor
   const displays = screen.getAllDisplays()
@@ -83,10 +89,15 @@ function createWindows(): void {
     if (displayWindow && !displayWindow.isDestroyed()) {
       displayWindow.close()
     }
+    displayWindow = null
   })
 
   displayWindow.on('closed', () => {
     displayWindow = null
+    if (controlWindow && !controlWindow.isDestroyed()) {
+      controlWindow.close()
+    }
+    controlWindow = null
   })
 }
 

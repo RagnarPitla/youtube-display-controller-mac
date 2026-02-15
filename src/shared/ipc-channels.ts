@@ -12,5 +12,7 @@ export const IPC = {
   VIDEO_FIT_MODE: 'video-fit-mode',
   LOOP_SETTINGS: 'loop-settings',
   BROWSE_FOLDER: 'browse-folder',
-  SCAN_FOLDER: 'scan-folder'
+  SCAN_FOLDER: 'scan-folder',
+  VOLUME_CHANGE: 'volume-change',
+  SET_ALWAYS_ON_TOP: 'set-always-on-top'
 } as const

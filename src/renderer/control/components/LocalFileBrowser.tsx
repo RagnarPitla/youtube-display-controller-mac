@@ -1,7 +1,12 @@
 import { useState, useCallback } from 'react'
 import type { LocalFileInfo } from '../../../shared/types'
 
-const VIDEO_EXTENSIONS = new Set(['.mp4', '.webm', '.mov', '.mkv', '.avi', '.m4v'])
+const MEDIA_EXTENSIONS = new Set([
+  // Video
+  '.mp4', '.webm', '.mov', '.mkv', '.avi', '.m4v', '.m4p', '.mpg', '.mpeg', '.wmv', '.flv',
+  // Image
+  '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.tif', '.svg'
+])
 
 interface Props {
   onPlay: (fileUrl: string, fileName: string) => void
@@ -40,7 +45,7 @@ export default function LocalFileBrowser({ onPlay }: Props) {
       const droppedFiles = Array.from(e.dataTransfer.files)
       const videoFile = droppedFiles.find((f) => {
         const ext = '.' + f.name.split('.').pop()?.toLowerCase()
-        return VIDEO_EXTENSIONS.has(ext)
+        return MEDIA_EXTENSIONS.has(ext)
       })
       if (videoFile && (videoFile as any).path) {
         const filePath = (videoFile as any).path as string
@@ -86,7 +91,7 @@ export default function LocalFileBrowser({ onPlay }: Props) {
       </div>
 
       {files.length > 0 && (
-        <div className="flex flex-col gap-0.5 max-h-48 overflow-y-auto rounded-lg bg-gray-900/50 p-1">
+        <div className="flex flex-col gap-0.5 max-h-96 overflow-y-auto rounded-lg bg-gray-900/50 p-1">
           {files.map((file) => {
             const isPlaying = playingUrl === file.fileUrl
             return (

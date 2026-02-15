@@ -15,6 +15,7 @@ declare global {
       onPlayLocalFile: (cb: (fileUrl: string) => void) => () => void
       onVideoFitMode: (cb: (mode: string) => void) => () => void
       onLoopSettings: (cb: (settings: LoopSettings) => void) => () => void
+      onVolumeChange: (cb: (volume: number) => void) => () => void
     }
   }
 }
@@ -52,6 +53,14 @@ export function useYouTubePlayer(containerId: string, active: boolean) {
 
   useEffect(() => {
     let apiReady = false
+    let readySent = false
+
+    const markReady = () => {
+      if (!readySent) {
+        readySent = true
+        window.displayAPI.sendPlayerReady()
+      }
+    }
 
     const initPlayer = (videoId?: string) => {
       if (playerRef.current) {
@@ -70,15 +79,18 @@ export function useYouTubePlayer(containerId: string, active: boolean) {
           modestbranding: 1,
           rel: 0,
           iv_load_policy: 3,
-          playsinline: 1,
-          origin: window.location.origin
+          playsinline: 1
         },
         events: {
           onReady: () => {
-            window.displayAPI.sendPlayerReady()
+            markReady()
             // Start polling playback state
             if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
             pollIntervalRef.current = window.setInterval(sendState, 250)
+          },
+          onError: () => {
+            // YouTube failed (e.g. Error 153) — still mark ready so local files work
+            markReady()
           },
           onStateChange: (event: { data: number }) => {
             sendState()
@@ -106,9 +118,14 @@ export function useYouTubePlayer(containerId: string, active: boolean) {
     tag.src = 'https://www.youtube.com/iframe_api'
     document.head.appendChild(tag)
 
+    // If YouTube API fails to load (no internet, blocked, etc.), mark ready after timeout
+    const readyTimeout = window.setTimeout(markReady, 5000)
+
     window.onYouTubeIframeAPIReady = () => {
+      clearTimeout(readyTimeout)
       apiReady = true
-      initPlayer('RZIexenVwSY')
+      // Don't auto-load a video — just init the API and wait for user commands
+      markReady()
     }
 
     // Listen for video load commands
@@ -125,6 +142,18 @@ export function useYouTubePlayer(containerId: string, active: boolean) {
     const unsubLoop = window.displayAPI.onLoopSettings((settings) => {
       loopRef.current = settings
       loopCounterRef.current = 0
+    })
+
+    // Listen for volume changes
+    const unsubVolume = window.displayAPI.onVolumeChange((volume: number) => {
+      const player = playerRef.current
+      if (!player || typeof player.setVolume !== 'function') return
+      if (volume === 0) {
+        player.mute()
+      } else {
+        player.unMute()
+        player.setVolume(volume)
+      }
     })
 
     // Listen for playback commands
@@ -149,9 +178,11 @@ export function useYouTubePlayer(containerId: string, active: boolean) {
     })
 
     return () => {
+      clearTimeout(readyTimeout)
       unsubVideo()
       unsubPlayback()
       unsubLoop()
+      unsubVolume()
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
       if (playerRef.current) playerRef.current.destroy()
     }
